@@ -1,129 +1,71 @@
 import { getMax } from "../services/get-max.service";
 import { getMin } from "../services/get-min.service";
-import { createLine } from "../services/create-line.service";
-import { createCircle } from "../services/create-circle.service";
+import { addBorder } from "../services/add-border.service";
+import { isValidElement } from "../services/is-valid-element.service";
+import { createRect } from "../services/create-rect.service";
 import { createText } from "../services/create-text.service";
 
-import {
-  defaultPointColour,
-  defaultLineColour,
-  defaultLinkThickness,
-  defaultPointSize,
-  textHeight,
-} from "../data/default-data";
+import { reset } from "./logic/reset.logic";
+import { generateChart } from "./logic/generate-chart.logic";
+import { addLabels } from "./logic/add-labels.logic";
+import { addIntervals } from "./logic/add-intervals.logic";
+import { addLines } from "./logic/add-lines.logic";
+import { addCircles } from "./logic/add-circles.logic";
 
-const isValidElement = (element) => {
-  const valid =
-    element instanceof Element &&
-    (element.name === "SVG" || element.name === "canvas");
-  return valid;
-};
-
-const addBorder = (svg, height, offset) => {
-  const { x, y } = offset;
-
-  createLine(svg, {
-    x1: x,
-    y1: 0,
-    x2: x,
-    y2: height - y,
-    style: "stroke-width:1px;stroke:#000;",
-  });
-
-  createLine(svg, {
-    x1: x,
-    y1: height - y,
-    x2: svg.clientWidth,
-    y2: height - y,
-    style: "stroke-width:1px;stroke:#000;",
-  });
-};
-
-const generateChart = (svg, width, height, offset, data, options) => {
-  const pointColour = options.pointColour || defaultPointColour;
-  const lineColour = options.lineColour || defaultLineColour;
-  const pointSize = options.pointSize || defaultPointSize;
-  const lineThickness = options.lineThickness || defaultLinkThickness;
-
-  const { minY, maxY } = options;
-
-  const minX = getMin(data, "x");
-  const maxX = getMax(data, "x");
-  const deltaX = maxX - minX;
-
-  const deltaY = maxY - minY;
-
-  const xPart = width / deltaX;
-  const yPart = height / deltaY;
-
-  data.forEach((point, index) => {
-    if (index === 0) return;
-    const [cx, cy] = [
-      point.x * xPart - xPart * minX + offset.x,
-      height - (point.y * yPart - yPart * minY + offset.y),
-    ];
-
-    const previous = data[index - 1];
-    const [previousCX, previousCY] = [
-      previous.x * xPart - xPart * minX + offset.x,
-      height - (previous.y * yPart - yPart * minY + offset.y),
-    ];
-
-    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    line.setAttribute("x1", previousCX);
-    line.setAttribute("y1", previousCY);
-    line.setAttribute("x2", cx);
-    line.setAttribute("y2", cy);
-    line.setAttribute(
-      "style",
-      `stroke-width:${lineThickness}px;stroke:${lineColour};`
-    );
-    svg.append(line);
-  });
-
-  data.forEach((point, index) => {
-    const [cx, cy] = [
-      point.x * xPart - xPart * minX + offset.x,
-      height - (point.y * yPart - yPart * minY + offset.y),
-    ];
-
-    createCircle(svg, { cx, cy, r: pointSize, style: `fill:${pointColour};` });
-  });
-};
-
-const addLabels = (svg, height, { minY, maxY }) => {
-  createText(svg, { x: 0, y: textHeight }, maxY);
-  createText(svg, { x: 0, y: height }, minY);
-};
+import { textHeight, textLineHeight } from "../data/default-data";
 
 export const Line = function (element, lineData, options = {}) {
   if (isValidElement(element))
     throw new Error("Element provided to Line not a HTMLElement");
 
-  [...element.children].forEach((x) => element.removeChild(x));
+  this.reset = reset;
+  this.generateChart = generateChart;
+  this.addBorder = addBorder;
+  this.addLabels = addLabels;
+  this.addIntervals = addIntervals;
+  this.addLines = addLines;
+  this.addCircles = addCircles;
+
+  this.element = element;
+  this.options = options;
+
+  this.tooltip = null;
+
+  if (options.tooltip === true) {
+    this.tooltip = [
+      createRect(element, {
+        width: 140,
+        height: textHeight * textLineHeight + 2,
+        style: "stroke:#000;stroke-width:1px;fill:#fff;",
+      }),
+      createText(element),
+    ];
+  }
 
   const { clientWidth: width, clientHeight: height } = element;
 
-  const graphWidth = width * 0.9;
-  const graphHeight = height * 0.9;
+  this.graphWidth = width * 0.9;
+  this.graphHeight = height * 0.9;
 
-  const minY = options.minY || getMin(lineData, "y");
-  let maxY = options.maxY || getMax(lineData, "y");
+  this.xPart = null;
+  this.yPart = null;
 
-  if (minY === maxY) {
-    maxY = minY + 1;
-  }
+  this.minX = null;
+  this.maxX = null;
 
-  addBorder(element, graphHeight, { x: width * 0.1, y: 0 });
+  this.minY = options.minY || getMin(lineData, "y");
+  this.maxY = (() => {
+    const maxY = options.maxY || getMax(lineData, "y");
+    return this.minY === maxY ? this.minY + 1 : maxY;
+  })();
 
-  generateChart(
-    element,
-    graphWidth,
-    graphHeight,
-    { x: width * 0.1, y: 0 },
-    lineData,
-    { ...options, minY, maxY }
-  );
+  this.offset = { x: width * 0.1, y: 0 };
 
-  addLabels(element, graphHeight, { minY, maxY });
+  (function init() {
+    this.reset();
+    this.generateChart(lineData);
+    this.addLabels(lineData);
+    this.addIntervals();
+    this.addBorder();
+  }.apply(this));
 };
