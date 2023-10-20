@@ -1,5 +1,6 @@
 import { createLine } from "../../services/create-line.service";
 import { createText } from "../../services/create-text.service";
+import { round } from "../../services/round.service";
 
 import { textHeight } from "../../data/default-data";
 
@@ -26,7 +27,9 @@ export const addIntervals = function () {
       style: `stroke-width:1px;stroke:lightgrey;`,
     });
 
+    const value = round(this.minY + i);
+
     index !== intervals.length - 1 &&
-      createText(this.element, { x: 0, y: y + textHeight / 2 }, this.minY + i);
+      createText(this.element, { x: 0, y: y + textHeight / 2 }, value);
   });
 };
