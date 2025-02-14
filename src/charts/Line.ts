@@ -1,12 +1,11 @@
-import { getMax } from "../services/get-max.service";
-import { getMin } from "../services/get-min.service";
 import { addBorder } from "../services/add-border.service";
 import { isValidElement } from "../services/is-valid-element.service";
 import { createRect } from "../services/create-rect.service";
 import { createText } from "../services/create-text.service";
 
 import { reset } from "./logic/reset.logic";
-import { generateChart } from "./logic/generate-chart.logic";
+import { resolveInformation } from "./logic/resolve-information.logic";
+import { generateChartLines } from "./logic/generate-chart-lines.logic";
 import { addLabels } from "./logic/add-labels.logic";
 import { addIntervals } from "./logic/add-intervals.logic";
 import { addLines } from "./logic/add-lines.logic";
@@ -14,11 +13,14 @@ import { addCircles } from "./logic/add-circles.logic";
 
 import { ICoords } from "../interfaces/ICoords.interface";
 import { IOptions } from "../interfaces/IOptions.interface";
+import { IInitOptions } from "../interfaces/IInitOptions.interface";
 
 import { defaultTextHeight, textLineHeight } from "../data/default-data";
+import { resolveOptions } from "./logic/resolve-options.logic";
 
 export class Line {
   element: SVGElement;
+  lineData: Array<ICoords>;
   options: IOptions;
 
   tooltip: [SVGRectElement, SVGTextElement];
@@ -38,7 +40,8 @@ export class Line {
   offset: ICoords;
 
   reset = reset;
-  generateChart = generateChart;
+  resolveInformation = resolveInformation;
+  generateChartLines = generateChartLines;
   addBorder = addBorder;
   addLabels = addLabels;
   addIntervals = addIntervals;
@@ -48,31 +51,30 @@ export class Line {
   constructor(
     element: SVGElement,
     lineData: Array<ICoords>,
-    options: IOptions = {}
+    options: IInitOptions = {}
   ) {
     if (!isValidElement(element))
       throw new Error("Element provided to Line not a HTMLElement");
 
     this.element = element;
-    this.options = options;
+    this.lineData = lineData;
+    this.options = resolveOptions(options, lineData);
 
     this.tooltip = null;
 
-    if (options.tooltip === true) {
+    if (this.options.tooltip === true) {
       this.tooltip = [
         createRect(element, {
           width: 140,
           height: defaultTextHeight * textLineHeight + 2,
-          style: "stroke:#000;stroke-width:1px;fill:#fff;",
+          style: "stroke: #000; stroke-width: 1px; fill: #fff;",
         }),
         createText(element),
       ];
     }
 
-    const { clientWidth: width, clientHeight: height } = element;
-
-    this.graphWidth = width * 0.9;
-    this.graphHeight = height * 0.9;
+    this.graphWidth = null;
+    this.graphHeight = null;
 
     this.xPart = null;
     this.yPart = null;
@@ -80,20 +82,17 @@ export class Line {
     this.minX = null;
     this.maxX = null;
 
-    this.minY = options.minY || getMin(lineData, "y");
-    this.maxY = (() => {
-      const maxY = options.maxY || getMax(lineData, "y");
-      return this.minY === maxY ? this.minY + 1 : maxY;
-    })();
-
-    this.offset = { x: width * 0.1, y: 0 };
+    this.minY = null;
+    this.maxY = null;
 
     (function init() {
       this.reset();
-      this.generateChart(lineData);
-      this.addLabels(lineData);
-      this.addIntervals();
+      this.resolveInformation();
+
       this.addBorder();
+      this.addIntervals();
+      this.addLabels();
+      this.generateChartLines();
     }).apply(this);
   }
 }

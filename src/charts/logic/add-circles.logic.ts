@@ -4,17 +4,13 @@ import { createCircle } from "../../services/create-circle.service";
 
 import { ICoords } from "../../interfaces/ICoords.interface";
 
-import {
-  defaultPointColour,
-  defaultPointSize,
-  defaultTextHeight,
-} from "../../data/default-data";
+import { defaultTextHeight } from "../../data/default-data";
 
 export const addCircles = function (data: Array<ICoords>) {
   const that = this as Line;
 
-  const pointColour = that.options.pointColour || defaultPointColour;
-  const pointSize = that.options.pointSize || defaultPointSize;
+  const pointColour = that.options.pointColour;
+  const pointSize = that.options.pointSize;
 
   data.forEach((point) => {
     const [cx, cy] = [
@@ -27,7 +23,8 @@ export const addCircles = function (data: Array<ICoords>) {
       cx,
       cy,
       r: pointSize,
-      style: `stroke:${pointColour};fill:transparent;`,
+      // style: `stroke: ${pointColour}; fill: transparent;`,
+      style: `stroke: ${pointColour}; fill: ${pointColour};`,
     });
 
     circle.addEventListener("mouseenter", () => {

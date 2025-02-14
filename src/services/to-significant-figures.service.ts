@@ -1,4 +1,5 @@
-export const toSignificantFigures = (str: string, figures: number) => {
+export const toSignificantFigures = (num: number, figures: number) => {
+  const str = String(num);
   const digits = str.split("");
   if (digits[0] === "0" && digits[1] !== ".") {
     throw "Whoops";
